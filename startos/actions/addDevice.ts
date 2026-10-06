@@ -1,13 +1,8 @@
 import { i18n } from '../i18n'
 import { sdk } from '../sdk'
+import { primaryUrl } from './configure'
 import { connectionCommand } from '../utils'
-import {
-  ensureUser,
-  headscaleCliJson,
-  readStore,
-  requireConfigured,
-  single,
-} from './helpers'
+import { ensureUser, headscaleCliJson, single } from './helpers'
 
 const { InputSpec, Value } = sdk
 
@@ -63,7 +58,10 @@ export const addDevice = sdk.Action.withInput(
   inputSpec,
   async () => ({}),
   async ({ effects, input }) => {
-    const config = requireConfigured(await readStore())
+    const serverUrl = await primaryUrl.bestUsable(effects).const()
+    if (!serverUrl) {
+      throw new Error(i18n('Run Set Primary URL before starting the service.'))
+    }
     const userId = await ensureUser(effects)
     const args = [
       'preauthkeys',
@@ -93,11 +91,9 @@ export const addDevice = sdk.Action.withInput(
             masked: true,
             copyable: true,
           }),
-          single(
-            i18n('Connect command'),
-            connectionCommand(config.endpointUrl, key),
-            { copyable: true },
-          ),
+          single(i18n('Connect command'), connectionCommand(serverUrl, key), {
+            copyable: true,
+          }),
         ],
       },
     }

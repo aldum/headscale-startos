@@ -1,7 +1,8 @@
 import { FileHelper } from '@start9labs/start-sdk'
-import { emptyStore, store } from './fileModels/store.json'
+import { store } from './fileModels/store.json'
 import { i18n } from './i18n'
 import { sdk } from './sdk'
+import { primaryUrl } from './actions/configure'
 import {
   configPath,
   controlHostId,
@@ -11,11 +12,17 @@ import {
   stunHostId,
   stunPort,
 } from './utils'
-import { requireConfigured } from './actions/helpers'
 
 export const main = sdk.setupMain(async ({ effects }) => {
+  const serverUrl = await primaryUrl.bestUsable(effects).const()
+  if (!serverUrl) {
+    throw new Error(i18n('Run Set Primary URL before starting the service.'))
+  }
   const current = await store.read().const(effects)
-  const config = requireConfigured(current ?? emptyStore())
+  const config = {
+    endpointUrl: serverUrl,
+    baseDomain: current?.baseDomain ?? null,
+  }
   // headscale reads the TLS pair once at startup, so a reissued certificate
   // (a changed address set) has to restart the daemon to take effect.
   await FileHelper.string({

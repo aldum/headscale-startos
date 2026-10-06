@@ -3,28 +3,10 @@ import { T } from '@start9labs/start-sdk'
 import { emptyStore, store, Store } from '../fileModels/store.json'
 import { i18n } from '../i18n'
 import { sdk } from '../sdk'
-import {
-  cliCommand,
-  defaultUser,
-  HeadscaleConfig,
-  parseNodes,
-  TailnetNode,
-} from '../utils'
+import { cliCommand, defaultUser, parseNodes, TailnetNode } from '../utils'
 
 export async function readStore(): Promise<Store> {
   return (await store.read().once()) ?? emptyStore()
-}
-
-export function requireConfigured(current: Store): HeadscaleConfig {
-  if (!current.endpointUrl) {
-    throw new Error(
-      i18n('Run Configure Headscale before starting the service.'),
-    )
-  }
-  return {
-    endpointUrl: current.endpointUrl,
-    baseDomain: current.baseDomain,
-  }
 }
 
 export async function headscaleCli(

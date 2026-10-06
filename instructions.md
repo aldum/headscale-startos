@@ -10,16 +10,35 @@ Headscale turns your StartOS server into the coordination server for your own ta
 
 ## Getting set up
 
-1. On the Headscale page, complete the **Choose the address your devices will connect to** task by running **Configure Headscale**. Pick the address your devices will use — usually the `.local` or LAN IP address on the **Coordination API** interface. The service starts once you save.
+1. On the Headscale page, complete the **Choose the address your devices will connect to** task by running **Set Primary URL**. Pick the address your devices will use — usually the `.local` or LAN IP address on the **Coordination API** interface. The service starts once you save.
 2. Run **Set Up MagicDNS** to choose a private domain for your network (for example `tsnet.home`). Devices can then reach each other by name.
 3. Run **Add Device** to create a connection key. The result shows the full `tailscale up` command to run on the device — copy it there.
 
-### Trusting the certificate on each device
+## Trusting your server on each device
 
-Devices connect to Headscale over HTTPS at your StartOS address, which uses your server's certificate. Before a device can join:
+Devices reach Headscale over HTTPS using your server's certificate, signed by your server's private root CA. Until a device trusts that CA, joining fails with `certificate signed by unknown authority`. Download the CA (from the **About this Server** screen in the StartOS menu, or by visiting the server's plain-HTTP `.local` address) and install it:
 
-- On computers, download your server's Root CA (from the **About this Server** screen in the StartOS menu, or by visiting the server's plain-HTTP `.local` address) and install it in that device's trust store. Tailscale reports an error like `certificate signed by unknown authority` until you do.
-- Phones and tablets generally cannot be made to trust a custom root certificate. To join from mobile devices, add a public address with a trusted certificate to the Coordination API interface (for example through StartTunnel), then select it in **Configure Headscale**.
+- **Linux (Debian/Ubuntu):** copy the `.crt` to `/usr/local/share/ca-certificates/` and run `sudo update-ca-certificates`. **Fedora/RHEL:** copy it to `/etc/pki/ca-trust/source/anchors/` and run `sudo update-ca-trust`. Restart tailscaled afterwards (`sudo systemctl restart tailscaled`) — it reads the trust store once at startup.
+- **Windows:** double-click the `.crt`, install it to Local Machine → Trusted Root Certification Authorities.
+- **macOS:** add it to the System keychain and set it to Always Trust.
+- **Android:** Settings → Security → install a CA certificate, and select the file. Needs a recent Tailscale app — only newer clients pick up user-installed CAs.
+- **iPhone/iPad:** get the `.crt` onto the phone (email or file share), open it to install the profile, then enable full trust under Settings → General → About → Certificate Trust Settings.
+
+## Joining your devices
+
+Use a Tailscale client of version 1.80 or newer — the server refuses older ones. You need two things: the server address you picked in **Set Primary URL**, and a key from **Add Device** (choose Reusable if several devices will share it; a device that already joined keeps working after its key expires).
+
+- **Linux / Windows / macOS:** install the official client, then run the command **Add Device** shows you:
+  `tailscale up --login-server=https://<your-server-address> --auth-key=<key>`
+- **Android:** install the official app, then in the app go to Settings → Accounts, open the ⋮ menu and pick **Use an alternate server**, and enter your server address. If a browser login opens, close it. Open the ⋮ menu again, pick **Use an auth key**, and paste the key from **Add Device**. Tap Connect.
+- **iPhone/iPad:** install the official app (1.80+). On the sign-in screen open the ⋮ menu, pick **Use an auth key**, enter your server address in the custom-server field, paste the key, and confirm.
+
+## Using your tailnet
+
+- `tailscale status` lists your devices with their tailnet addresses (`100.64.0.x`).
+- `tailscale ping <address-or-name>` checks reachability — e.g. `tailscale ping laptop.tsnet.home` once MagicDNS is set up.
+- `tailscale netcheck` shows the path report. Expect a `headscale` region with LAN-scale latency: that is your own box relaying. When two devices cannot connect directly, traffic relays through it and stays on your network.
+- Devices join with keys, never passwords. A key is single-purpose: mint a fresh one per device (or one reusable key for a batch), and use **Expire Device** to log a device out or **Remove Device** to delete it outright.
 
 ## Using Headscale
 
@@ -27,12 +46,12 @@ Devices connect to Headscale over HTTPS at your StartOS address, which uses your
 - **View Devices** — lists every device on the tailnet with its addresses and whether it is connected.
 - **Expire Device** — logs a device out; it must reauthenticate to rejoin. Repeat-safe.
 - **Remove Device** — deletes a device outright. Use **Expire Device** first if you think you might want the device back — removal requires a new key to rejoin.
-- **Configure Headscale** — change the server address. The service restarts and reannounces itself.
+- **Set Primary URL** — change the server address. The service restarts and reannounces itself.
 - **Set Up MagicDNS** — change the tailnet domain.
 
 ## Limitations
 
-- The StartOS certificate caveat above is the single most common reason a device fails to join. If `tailscale up` reports a TLS error, the device doesn't yet trust your server.
+- The StartOS certificate step above is the single most common reason a device fails to join. If `tailscale up` reports a TLS error, the device doesn't yet trust your server. On old Android clients and some iOS versions, trusting a private CA does not work at all — keep the Tailscale app updated.
 - This package starts with no access-control restrictions: every device that joins with a key can reach every other device. Upstream supports fine-grained policies via a policy file; the package ships the default allow-all policy.
 - Interactive (browser) registration without a key requires OIDC, which this package does not configure — every device joins with a key from **Add Device**.
 - When two devices cannot connect directly, traffic is relayed through Headscale's own embedded DERP relay on your box (with a STUN server on the DERP Relay interface), so relayed traffic stays on your network. There is deliberately no fallback to Tailscale's public relays: if a device cannot reach your box, it cannot relay either.
