@@ -1,6 +1,14 @@
 export const controlPort = 8080
 export const stunPort = 3478
 
+// The external port StartOS publishes the coordination API on. 443 is taken by
+// the StartOS UI's own wildcard vhost (start-cli net vhost dump-table shows
+// *:443), so 443 is not claimable; 8443 is the conventional unprivileged
+// stand-in and survives restrictive egress firewalls that allow only 80/443.
+// A request, not a guarantee: everything downstream (server_url, the DERP map's
+// DERPPort, Set Primary URL) reads the port StartOS actually assigned.
+export const controlExternalPort = 8443
+
 export const controlHostId = 'headscale'
 export const controlInterfaceId = 'control'
 export const stunHostId = 'derp'
@@ -172,6 +180,45 @@ dns:
 unix_socket: '/data/headscale.sock'
 unix_socket_permission: '0770'
 `
+}
+
+/**
+ * The address headscale advertises: the stored one while the interface serves
+ * its hostname, else null — headscale must not run on an address the user
+ * didn't choose. Equivalent to `primaryUrl.bestUsable` with `fallback: false`,
+ * but built from plain reads: `bestUsable` combines two watches into one, and
+ * in an init context that combined reader does not emit, so awaiting it never
+ * returns and the daemon never starts.
+ */
+export function bestServerUrl(
+  stored: string | null | undefined,
+  urls: string[],
+): string | null {
+  if (!stored) return null
+  if (urls.includes(stored)) return stored
+  let was: URL | null = null
+  try {
+    was = new URL(stored)
+  } catch {
+    return null
+  }
+  const hostname = was.hostname
+  const protocol = was.protocol
+  const sameHost = urls.filter((u) => {
+    try {
+      return new URL(u).hostname === hostname
+    } catch {
+      return false
+    }
+  })
+  const match = sameHost.find((u) => {
+    try {
+      return new URL(u).protocol === protocol
+    } catch {
+      return false
+    }
+  })
+  return match ?? sameHost[0] ?? null
 }
 
 export function connectionCommand(serverUrl: string, authKey: string): string {

@@ -1,8 +1,8 @@
 import { i18n } from '../i18n'
 import { sdk } from '../sdk'
-import { primaryUrl } from './configure'
-import { connectionCommand } from '../utils'
-import { ensureUser, headscaleCliJson, single } from './helpers'
+import { controlUrlsOnce } from '../endpoint'
+import { bestServerUrl, connectionCommand } from '../utils'
+import { ensureUser, headscaleCliJson, readStore, single } from './helpers'
 
 const { InputSpec, Value } = sdk
 
@@ -58,7 +58,10 @@ export const addDevice = sdk.Action.withInput(
   inputSpec,
   async () => ({}),
   async ({ effects, input }) => {
-    const serverUrl = await primaryUrl.bestUsable(effects).const()
+    const serverUrl = bestServerUrl(
+      (await readStore()).endpointUrl,
+      await controlUrlsOnce(effects),
+    )
     if (!serverUrl) {
       throw new Error(i18n('Run Set Primary URL before starting the service.'))
     }

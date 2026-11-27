@@ -5,7 +5,7 @@ export const manifest = setupManifest({
   id: 'headscale',
   title: 'Headscale',
   license: 'BSD-3-Clause',
-  packageRepo: 'https://github.com/Start9-Community/headscale-startos',
+  packageRepo: 'https://github.com/aldum/headscale-startos',
   upstreamRepo: 'https://github.com/juanfont/headscale',
   marketingUrl: 'https://headscale.net/',
   donationUrl: null,

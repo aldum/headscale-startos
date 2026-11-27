@@ -5,7 +5,6 @@ import { actions } from '../actions'
 import { restoreInit } from '../backups'
 import { dependencies } from '../dependencies'
 import { seedStore } from './seedStore'
-import { primaryUrlTask } from '../actions/configure'
 import { setupCerts } from './setupCerts'
 import { watchSetup } from './watchSetup'
 
@@ -16,7 +15,6 @@ export const init = sdk.setupInit(
   setupCerts,
   dependencies,
   actions,
-  primaryUrlTask,
   seedStore,
   watchSetup,
 )

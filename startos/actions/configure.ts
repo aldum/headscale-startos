@@ -32,9 +32,3 @@ export const primaryUrl = sdk.setupPrimaryUrl({
 })
 
 export const configure = primaryUrl.action
-
-export const primaryUrlTask = primaryUrl.setupTask('critical', {
-  reason: i18n(
-    'Choose the address your devices will connect to before starting.',
-  ),
-})

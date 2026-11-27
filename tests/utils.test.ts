@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { bestServerUrl } from '../startos/utils.ts'
 import {
   parseNodes,
   renderDerpMap,
@@ -101,4 +102,29 @@ test('parseNodes drops entries without an integer id', () => {
   assert.deepEqual(parseNodes(null), [])
   assert.deepEqual(parseNodes([{ given_name: 'ghost' }]), [])
   assert.deepEqual(parseNodes([{ id: 'abc' }]), [])
+})
+
+test('bestServerUrl follows a stored hostname to its current port', () => {
+  const urls = [
+    'https://10.100.0.100:8443',
+    'https://head.example.com:8443',
+    'https://illegal-whiz.local:8443',
+  ]
+  assert.equal(
+    bestServerUrl('https://head.example.com:8443', urls),
+    'https://head.example.com:8443',
+  )
+  assert.equal(
+    bestServerUrl('https://head.example.com:8080', urls),
+    'https://head.example.com:8443',
+  )
+})
+
+test('bestServerUrl is null when nothing is chosen or the hostname is gone', () => {
+  const urls = ['https://10.100.0.100:8443']
+  assert.equal(bestServerUrl(null, urls), null)
+  assert.equal(bestServerUrl(undefined, urls), null)
+  assert.equal(bestServerUrl('', urls), null)
+  assert.equal(bestServerUrl('https://gone.example.com:8443', urls), null)
+  assert.equal(bestServerUrl('not a url', urls), null)
 })

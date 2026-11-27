@@ -2,8 +2,9 @@ import { FileHelper } from '@start9labs/start-sdk'
 import { store } from './fileModels/store.json'
 import { i18n } from './i18n'
 import { sdk } from './sdk'
-import { primaryUrl } from './actions/configure'
+import { controlUrls } from './endpoint'
 import {
+  bestServerUrl,
   configPath,
   controlHostId,
   controlPort,
@@ -14,11 +15,14 @@ import {
 } from './utils'
 
 export const main = sdk.setupMain(async ({ effects }) => {
-  const serverUrl = await primaryUrl.bestUsable(effects).const()
+  const current = await store.read().const(effects)
+  const serverUrl = bestServerUrl(
+    current?.endpointUrl,
+    await controlUrls(effects),
+  )
   if (!serverUrl) {
     throw new Error(i18n('Run Set Primary URL before starting the service.'))
   }
-  const current = await store.read().const(effects)
   const config = {
     endpointUrl: serverUrl,
     baseDomain: current?.baseDomain ?? null,

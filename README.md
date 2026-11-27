@@ -67,7 +67,9 @@ None. Headscale is self-contained: the database is embedded SQLite.
 | Coordination API | `control` | api  | 8080 | HTTP control protocol (Tailscale clients register and long-poll here), the v1/v2 HTTP API, and the interactive-login pages. Bound as a TLS passthrough port: StartOS forwards the raw TLS stream and headscale terminates TLS itself with a certificate minted from the StartOS CA (`startos/init/setupCerts.ts`), so HTTP `CONNECT` tunnels — which the reverse proxy rejects — reach the daemon. |
 | DERP Relay       | `derp`    | p2p  | 3478 | STUN (UDP) for the embedded DERP relay, so devices behind NAT can discover their public endpoints through your own box.                                                                                                                                                                                                                                                                            |
 
-The embedded DERP relay (region 999) is served from the coordination port and advertised in every client's netmap; relayed traffic never leaves your network unless a client also needs the public fallback regions that headscale keeps in its map. Metrics (9090) and gRPC (50443) are bound to loopback inside the container and are deliberately not exposed.
+The embedded DERP relay (region 999) is served from the coordination port and advertised in every client's netmap; relayed traffic stays on your network, and no Tailscale public region is ever in the map (`derp.urls` is empty). Metrics (9090) and gRPC (50443) are bound to loopback inside the container and are deliberately not exposed.
+
+Ports in the table are the **internal** (container) ports. The published ones are set by StartOS: the coordination API prefers **8443** (`controlExternalPort` in `startos/utils.ts` — not 443, which StartOS's own wildcard vhost owns) and STUN prefers 3478. Neither is guaranteed — another package can hold a preferred port, as coturn does with UDP 3478 — so everything that names a port reads the live assigned one off the binding.
 
 `server_url` — the address advertised to clients — is the `endpointUrl` the user selected in **Set Primary URL**. If the user later disables that address, the critical setup task reappears until they pick an enabled one.
 
@@ -88,7 +90,7 @@ Devices join with keys, never passwords: **Add Device** mints a pre-auth key; th
 
 ## Tasks
 
-- **Set Primary URL** — critical, SDK-managed (`sdk.setupPrimaryUrl` with `fallback: false`; do not reintroduce a fallback default). Raised while `store.json` has no server address or the saved hostname is no longer served. Blocks service start; clears on run. Can return, e.g. after a restore onto a differently named server.
+- **Set Primary URL** — critical, raised by `init/watchSetup.ts` from a store watch, not by `primaryUrl.setupTask` (see the note in `AGENTS.md`). Raised while `store.json` has no server address or the saved hostname is no longer served; no fallback default. Blocks service start; clears when a served address is stored. Can return, e.g. after a restore onto a differently named server.
 - **Set Up MagicDNS** — important. Raised while `baseDomain` is unset; cleared by running the action. Does not block start.
 
 ## Health Checks
@@ -126,7 +128,14 @@ file_models:
 startos_managed_env_vars: []
 dependencies: none
 interfaces:
-  control: { type: api, port: 8080 }
+  control:
+    {
+      type: api,
+      internalPort: 8080,
+      preferredExternalPort: 8443,
+      tls: passthrough,
+    }
+  derp: { type: p2p, internalPort: 3478, protocol: udp }
 actions:
   - configure
   - setup-dns

@@ -1,6 +1,7 @@
 import { i18n } from './i18n'
 import { sdk } from './sdk'
 import {
+  controlExternalPort,
   controlHostId,
   controlInterfaceId,
   controlPort,
@@ -13,7 +14,7 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
   const controlHost = sdk.MultiHost.of(effects, controlHostId)
   const controlOrigin = await controlHost.bindPort(controlPort, {
     protocol: null,
-    preferredExternalPort: controlPort,
+    preferredExternalPort: controlExternalPort,
     addSsl: null,
     secure: { ssl: true },
   })
